@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ذيب الكحلوش - النسخة المرعبة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #f0c040; --red: #ff3b3b; --dark: #050505; --card: #121212; --ghost: #888; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--dark); color: #fff; font-family: 'Almarai', sans-serif; height: 100vh; margin: 0; overflow: hidden; transition: 0.5s; }
+        
+        /* حالات الشاشة */
+        body.night { background: radial-gradient(circle, #1a0505 0%, #050505 100%); }
+        body.dead { filter: grayscale(1) contrast(1.2); }
+
+        /* الهيدر */
+        .header { padding: 12px; background: #000; border-bottom: 2px solid var(--red); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+        .timer-circle { width: 50px; height: 50px; border: 3px solid var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; }
+
+        /* الساحة */
+        .arena { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 15px; overflow-y: auto; }
+        .card { background: var(--card); border: 2px solid #222; border-radius: 12px; padding: 10px; text-align: center; position: relative; transition: 0.2s; }
+        .card.selected { border-color: var(--gold); transform: scale(1.05); }
+        .card.is-dead { opacity: 0.3; border-style: dashed; }
+        .vote-count { position: absolute; top: -5px; right: -5px; background: var(--red); color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; border: 1px solid #fff; }
+
+        /* الشات */
+        .chat-container { height: 35vh; background: rgba(0,0,0,0.8); border-top: 1px solid #333; display: flex; flex-direction: column; }
+        .messages { flex: 1; overflow-y: auto; padding: 10px; font-size: 0.85rem; }
+        .msg { margin-bottom: 5px; padding: 5px 10px; border-radius: 5px; }
+        .msg.wolf { background: rgba(255, 59, 59, 0.15); color: #ff8888; border-right: 3px solid var(--red); }
+        .msg.sys { color: var(--gold); text-align: center; font-weight: bold; }
+        .msg.ghost { color: var(--ghost); font-style: italic; }
+
+        /* الأكشن */
+        .input-area { padding: 10px; display: flex; gap: 8px; background: #111; }
+        input { flex: 1; background: #222; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 5px; outline: none; }
+        .btn-action { background: var(--red); border: none; padding: 10px 20px; color: white; border-radius: 5px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div id="role-info"><span style="color:var(--ghost)">انتظر...</span></div>
+    <div class="timer-circle" id="timer">--</div>
+    <div id="phase-text">التحميل...</div>
+</div>
+
+<div class="arena" id="arena"></div>
+
+<div class="chat-container">
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+        <input type="text" id="msg-input" placeholder="اكتب شيئاً...">
+        <button class="btn-action" onclick="handleMainAction()">أكشن</button>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+import { getDatabase, ref, onValue, set, update, runTransaction, serverTimestamp, push } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBnCUMiGluMPhqMlaa-94xn9QLX19G7aPI",
+    authDomain: "mafia-2fdd8.firebaseapp.com",
+    projectId: "mafia-2fdd8",
+    databaseURL: "https://mafia-2fdd8-default-rtdb.firebaseio.com"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+
+const urlParams = new URLSearchParams(window.location.search);
+const roomId = urlParams.get('id');
+let myUid, myRole, myStatus, selectedId, gameState;
+
+// 1. الدخول والمزامنة الحية
+onAuthStateChanged(auth, user => {
+    if (user && roomId) {
+        myUid = user.uid;
+        syncGame();
+    }
+});
+
+function syncGame() {
+    onValue(ref(db, `rooms/${roomId}`), async snap => {
+        const data = snap.val();
+        if (!data) return;
+        gameState = data;
+        
+        // توزيع تلقائي عند أول دخول
+        if (!data.gameStarted) {
+            handleAutoDistribute(data.players);
+            return;
+        }
+
+        myRole = data.players[myUid].role;
+        myStatus = data.players[myUid].status;
+        renderUI(data);
+        checkGameLoop(data);
+    });
+
+    // مزامنة الشات
+    onValue(ref(db, `rooms/${roomId}/chat`), snap => {
+        const box = document.getElementById('messages');
+        box.innerHTML = "";
+        snap.forEach(m => {
+            const d = m.val();
+            // تصفية الشات: الذيابة فقط يقرأون شات الذيابة
+            if (d.type === 'wolf' && myRole !== 'ذيب') return;
+            // تصفية شات الأشباح
+            if (d.type === 'ghost' && myStatus !== 'dead') return;
+            
+            box.innerHTML += `<div class="msg ${d.type}"><b>${d.user}:</b> ${d.text}</div>`;
+        });
+        box.scrollTop = box.scrollHeight;
+    });
+}
+
+// 2. التوزيع الذكي للأدوار (Logic)
+async function handleAutoDistribute(players) {
+    const uids = Object.keys(players);
+    if (uids.length < 4) return; // انتظار 4 لاعبين
+
+    await runTransaction(ref(db, `rooms/${roomId}/lock`), (lock) => {
+        if (lock === null) {
+            const roles = shuffleRoles(uids.length);
+            const updates = { gameStarted: true, phase: 'night', timer: 30, lastUpdate: Date.now() };
+            uids.forEach((id, i) => {
+                updates[`players/${id}/role`] = roles[i];
+                updates[`players/${id}/status`] = 'alive';
+            });
+            update(ref(db, `rooms/${roomId}`), updates);
+            return true;
+        }
+    });
+}
+
+function shuffleRoles(n) {
+    let r = ["ذيب", "محقق", "طبيب"];
+    if (n > 5) r.push("ذيب");
+    while (r.length < n) r.push("مواطن");
+    return r.sort(() => Math.random() - 0.5);
+}
+
+// 3. تحديث الواجهة (UI)
+function renderUI(data) {
+    document.body.className = `${data.phase} ${myStatus === 'dead' ? 'dead' : ''}`;
+    document.getElementById('role-info').innerHTML = `دورك: <span style="color:var(--gold)">${myRole}</span>`;
+    document.getElementById('phase-text').innerText = data.phase === 'night' ? 'الليل 🌙' : 'النهار ☀️';
+    document.getElementById('timer').innerText = data.timer;
+
+    const arena = document.getElementById('arena');
+    arena.innerHTML = "";
+    Object.entries(data.players).forEach(([id, p]) => {
+        const card = document.createElement('div');
+        card.className = `card ${p.status === 'dead' ? 'is-dead' : ''} ${selectedId === id ? 'selected' : ''}`;
+        card.innerHTML = `
+            ${p.votes ? `<div class="vote-count">${p.votes}</div>` : ''}
+            <div style="font-size:1.5rem">${id === myUid ? '👤' : '👥'}</div>
+            <div style="font-size:0.7rem">${p.name}</div>
+        `;
+        card.onclick = () => { if(p.status === 'alive' && id !== myUid) { selectedId = id; renderUI(data); } };
+        arena.appendChild(card);
+    });
+}
+
+// 4. المحرك الرئيسي (Game Loop)
+function checkGameLoop(data) {
+    // فقط لاعب واحد (الأدمن الافتراضي) يدير التوقيت لمنع التعارض
+    const isHost = Object.keys(data.players)[0] === myUid;
+    if (!isHost) return;
+
+    const now = Date.now();
+    if (now - data.lastUpdate >= 1000 && data.timer > 0) {
+        update(ref(db, `rooms/${roomId}`), { timer: data.timer - 1, lastUpdate: now });
+    } else if (data.timer <= 0) {
+        switchPhase(data);
+    }
+}
+
+async function switchPhase(data) {
+    let nextPhase = data.phase === 'night' ? 'day' : 'night';
+    const updates = { phase: nextPhase, timer: nextPhase === 'night' ? 30 : 45, lastUpdate: Date.now() };
+    
+    // تصفية القتلى عند الصباح
+    if (nextPhase === 'day' && data.nightAction) {
+        updates[`players/${data.nightAction.target}/status`] = 'dead';
+        updates[`nightAction`] = null;
+    }
+    
+    // تصفية المطرودين عند الليل
+    if (nextPhase === 'night') {
+        const kicked = findKicked(data.players);
+        if (kicked) updates[`players/${kicked}/status`] = 'dead';
+        // تصفير الأصوات
+        Object.keys(data.players).forEach(id => updates[`players/${id}/votes`] = 0);
+    }
+
+    update(ref(db, `rooms/${roomId}`), updates);
+}
+
+// 5. الأكشنات والتصويت
+window.handleMainAction = () => {
+    const input = document.getElementById('msg-input');
+    if (input.value) {
+        let type = (myStatus === 'dead') ? 'ghost' : (myRole === 'ذيب' && gameState.phase === 'night' ? 'wolf' : 'normal');
+        push(ref(db, `rooms/${roomId}/chat`), { user: auth.currentUser.displayName || "لاعب", text: input.value, type: type });
+        input.value = "";
+        return;
+    }
+
+    if (!selectedId) return;
+    if (gameState.phase === 'night') {
+        if (myRole === 'ذيب') update(ref(db, `rooms/${roomId}/nightAction`), { target: selectedId });
+        if (myRole === 'محقق') alert("هذا الشخص: " + gameState.players[selectedId].role);
+    } else {
+        runTransaction(ref(db, `rooms/${roomId}/players/${selectedId}/votes`), v => (v || 0) + 1);
+    }
+    selectedId = null;
+};
+
+function findKicked(players) {
+    let max = 0, id = null;
+    Object.entries(players).forEach(([k, p]) => { if(p.votes > max) { max = p.votes; id = k; } });
+    return id;
+}
+
+</script>
+</body>
+</html>

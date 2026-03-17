@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+/* التصميم الذي أرسلته بدون أي تغيير */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#e63030;--gold:#f0c040;--dark:#0d0d0d;--card:#161616;--card2:#1e1e1e;
+  --border:#2a2a2a;--muted:#555;--wolf:#c0392b;
+}
+body{
+  background:var(--dark);color:#e8e8e0;
+  font-family:'Almarai',sans-serif;
+  min-height:600px;overflow-x:hidden;
+  background-image:radial-gradient(ellipse 600px 300px at 50% -80px,rgba(180,30,30,.18) 0%,transparent 70%);
+}
+.header{text-align:center;padding:28px 20px 16px;position:relative;}
+.title-wolf{font-size:2.6rem;font-weight:800;letter-spacing:-.5px;color:#fff;line-height:1.1;}
+.title-wolf span{color:var(--red);}
+.title-sub{font-size:.75rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-top:4px;}
+.title-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:260px;height:60px;background:radial-gradient(ellipse,rgba(220,40,40,.22) 0%,transparent 70%);pointer-events:none;z-index:0;}
+.top-bar{display:flex;gap:10px;padding:0 16px 16px;justify-content:center;}
+.btn{background:var(--card);border:1px solid var(--border);color:var(--gold);padding:10px 18px;border-radius:8px;cursor:pointer;font-family:'Almarai',sans-serif;font-size:.85rem;font-weight:700;transition:all .18s;display:flex;align-items:center;gap:6px;}
+.btn:hover{background:var(--card2);border-color:var(--gold);color:#fff;}
+.btn-create{background:var(--wolf);border-color:var(--wolf);color:#fff;box-shadow:0 0 16px rgba(200,40,40,.3);}
+.btn-create:hover{background:#c0392b;box-shadow:0 0 24px rgba(200,40,40,.45);}
+.rooms-wrap{padding:0 16px;min-height:200px;}
+.rooms-label{font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.rooms-label::before,.rooms-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.room-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all .18s;}
+.room-card:hover{background:var(--card2);border-color:#3a3a3a;transform:translateY(-1px);}
+.room-card-left{display:flex;flex-direction:column;gap:3px;}
+.room-name{font-weight:700;font-size:.95rem;color:#ddd;}
+.room-meta{font-size:.75rem;color:var(--muted);}
+.room-meta span{color:#888;}
+.room-card-right{display:flex;align-items:center;gap:10px;}
+.room-status{font-size:.7rem;padding:4px 10px;border-radius:20px;font-weight:700;}
+.status-open{background:rgba(20,180,80,.15);color:#20c070;border:1px solid rgba(20,180,80,.25);}
+.status-full{background:rgba(180,40,40,.15);color:#e05050;border:1px solid rgba(180,40,40,.25);}
+.join-btn{background:transparent;border:1px solid #333;color:var(--gold);padding:6px 14px;border-radius:6px;font-family:'Almarai',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer;transition:all .15s;}
+.join-btn:hover{background:var(--gold);color:#000;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:90;backdrop-filter:blur(2px);}
+.overlay.show{display:block;}
+.modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-54%);background:#141414;border:1px solid #2e2e2e;border-radius:16px;z-index:100;width:92%;max-width:400px;box-shadow:0 24px 60px rgba(0,0,0,.7);padding:0;overflow:hidden;}
+.modal.show{display:block;}
+.modal-head{background:var(--card);padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.modal-head h3{font-size:1rem;font-weight:800;color:var(--gold);}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:0 4px;}
+.modal-body{padding:16px 20px;}
+.role-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);}
+.role-info h4{font-size:.88rem;font-weight:700;color:#ddd;margin-bottom:2px;}
+.role-info p{font-size:.78rem;color:var(--muted);line-height:1.5;}
+.field{margin-bottom:14px;}
+.field label{font-size:.78rem;color:var(--muted);display:block;margin-bottom:5px;}
+.field input,.field select{width:100%;background:var(--card2);border:1px solid var(--border);color:#ddd;padding:9px 12px;border-radius:7px;font-family:'Almarai',sans-serif;}
+.btn-full{width:100%;background:var(--wolf);border:none;color:#fff;padding:11px;border-radius:8px;font-family:'Almarai',sans-serif;font-size:.9rem;font-weight:800;cursor:pointer;margin-top:4px;}
+.footer{position:sticky;bottom:0;background:#0d0d0dcc;backdrop-filter:blur(10px);border-top:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:14px;margin-top:24px;}
+.avatar-wrap{position:relative;cursor:pointer;width:52px;height:52px;flex-shrink:0;}
+.avatar-img{width:52px;height:52px;border-radius:10px;border:2px solid var(--gold);object-fit:cover;background:var(--card2);display:block;}
+.player-name{font-weight:800;color:var(--gold);font-size:.95rem;}
+.player-badge{margin-right:auto;background:rgba(200,40,40,.15);border:1px solid rgba(200,40,40,.25);color:#e05050;font-size:.68rem;padding:3px 10px;border-radius:20px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-glow"></div>
+  <div class="title-wolf">ذيب <span>الكحلوش</span></div>
+  <div class="title-sub">لعبة الذئب الاجتماعية</div>
+</div>
+
+<div class="top-bar">
+  <button class="btn" onclick="openRoles()">📜 الوظائف</button>
+  <button class="btn btn-create" onclick="openCreate()">＋ إنشاء غرفة</button>
+</div>
+
+<div class="rooms-wrap">
+  <div class="rooms-label">الغرف المفتوحة</div>
+  <div id="rooms-list">
+    </div>
+</div>
+
+<div class="footer">
+  <div class="avatar-wrap" onclick="document.getElementById('file-input').click()">
+    <img id="avatar-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Crect fill='%231e1e1e' width='52' height='52'/%3E%3Ctext x='26' y='33' text-anchor='middle' font-size='22' fill='%23555'%3E👤%3C/text%3E%3C/svg%3E" class="avatar-img">
+  </div>
+  <input type="file" id="file-input" accept="image/*" style="display:none">
+  <div>
+    <div class="player-name" id="player-name">جاري التحميل...</div>
+  </div>
+  <div class="player-badge">🐺 متفرج</div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeAll()"></div>
+<div class="modal" id="modal-roles">
+    </div>
+
+<div class="modal" id="modal-create">
+  <div class="modal-head"><h3>إنشاء غرفة جديدة</h3><button class="modal-close" onclick="closeAll()">✕</button></div>
+  <div class="modal-create-body">
+    <div class="field"><label>اسم الغرفة</label><input type="text" id="room-name-input" placeholder="مثال: ليلة الذئاب 🌙"></div>
+    <div class="field"><label>عدد اللاعبين</label><select id="room-size"><option value="6">6 لاعبين</option><option value="8">8 لاعبين</option><option value="12">12 لاعب</option></select></div>
+    <button class="btn-full" onclick="createRoomReal()">إنشاء الغرفة 🐺</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
+import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBnCUMiGluMPhqMlaa-94xn9QLX19G7aPI",
+    authDomain: "mafia-2fdd8.firebaseapp.com",
+    projectId: "mafia-2fdd8",
+    databaseURL: "https://mafia-2fdd8-default-rtdb.firebaseio.com",
+    storageBucket: "mafia-2fdd8.firebasestorage.app",
+    messagingSenderId: "660248358624",
+    appId: "1:660248358624:web:9c9c495851b83f3c6d2a85"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+let myNick = "ذيب مجهول";
+
+onAuthStateChanged(auth, user => {
+    if (user) {
+        onValue(ref(db, 'users/' + user.uid), s => {
+            if(s.exists()) {
+                myNick = s.val().username;
+                document.getElementById('player-name').innerText = myNick;
+            }
+        });
+        listenToRooms();
+    } else { window.location.href = "login.html"; }
+});
+
+// إنشاء غرفة حقيقية
+window.createRoomReal = async () => {
+    const rName = document.getElementById('room-name-input').value.trim() || "غرفة جديدة";
+    const rSize = document.getElementById('room-size').value;
+    const newRoomRef = push(ref(db, 'rooms'));
+    const roomId = newRoomRef.key;
+
+    await set(newRoomRef, {
+        id: roomId,
+        name: rName,
+        max: rSize,
+        host: myNick,
+        hostId: auth.currentUser.uid,
+        playersCount: 1,
+        status: "waiting"
+    });
+
+    window.location.href = `room.html?id=${roomId}`;
+};
+
+// جلب الغرف حية
+function listenToRooms() {
+    onValue(ref(db, 'rooms'), snap => {
+        const list = document.getElementById('rooms-list');
+        list.innerHTML = "";
+        snap.forEach(child => {
+            const r = child.val();
+            if(r.status !== "waiting") return;
+            list.innerHTML += `
+                <div class="room-card" onclick="window.location.href='room.html?id=${r.id}'">
+                    <div class="room-card-left">
+                        <div class="room-name">${r.name}</div>
+                        <div class="room-meta">${r.playersCount} / ${r.max} لاعبين &nbsp;·&nbsp; <span>المضيف: ${r.host}</span></div>
+                    </div>
+                    <div class="room-card-right"><span class="room-status status-open">انضمام</span></div>
+                </div>`;
+        });
+    });
+}
+
+// Avatar
+const fileInput = document.getElementById('file-input');
+const avatarPreview = document.getElementById('avatar-preview');
+if (localStorage.getItem('user-avatar')) avatarPreview.src = localStorage.getItem('user-avatar');
+fileInput.onchange = e => {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = () => { avatarPreview.src = reader.result; localStorage.setItem('user-avatar', reader.result); };
+  if(file) reader.readAsDataURL(file);
+};
+
+// Modals UI
+window.openRoles = () => { document.getElementById('modal-roles').classList.add('show'); document.getElementById('overlay').classList.add('show'); };
+window.openCreate = () => { document.getElementById('modal-create').classList.add('show'); document.getElementById('overlay').classList.add('show'); };
+window.closeAll = () => { document.querySelectorAll('.modal').forEach(m => m.classList.remove('show')); document.getElementById('overlay').classList.remove('show'); };
+</script>
+</body>
+</html>

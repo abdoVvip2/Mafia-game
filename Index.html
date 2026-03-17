@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ذيب الكحلوش - الدخول</title>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #c3a469; --brown: #2c1b0f; --red: #8b0000; }
+        body { margin: 0; background: #000; color: #fff; font-family: 'Almarai', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .auth-card { background: linear-gradient(145deg, #1e140d, #000); border: 2px solid var(--gold); padding: 30px; border-radius: 8px; width: 90%; max-width: 350px; text-align: center; box-shadow: 0 0 25px rgba(195, 164, 105, 0.3); }
+        h1 { color: var(--gold); margin-bottom: 25px; font-weight: 800; text-shadow: 2px 2px #000; font-size: 1.8rem; }
+        input { width: 100%; padding: 14px; margin-bottom: 15px; background: #111; border: 1px solid #444; border-radius: 4px; color: #fff; outline: none; box-sizing: border-box; font-size: 1rem; }
+        input:focus { border-color: var(--gold); box-shadow: 0 0 5px var(--gold); }
+        .btn-main { width: 100%; padding: 15px; background: var(--gold); color: #000; border: none; border-radius: 4px; font-weight: 800; cursor: pointer; font-size: 1.1rem; margin-top: 10px; }
+        .btn-main:active { transform: scale(0.98); }
+        .toggle-text { margin-top: 25px; font-size: 0.9rem; color: #aaa; cursor: pointer; }
+        .toggle-text span { color: var(--gold); text-decoration: underline; font-weight: bold; }
+        .hidden { display: none; }
+        .error-msg { color: #ff4444; font-size: 0.8rem; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="auth-card">
+    <h1 id="main-title">دخول القطيع</h1>
+    <div id="error-box" class="error-msg"></div>
+    
+    <input type="text" id="username" class="hidden" placeholder="لقبك في اللعبة (اليوزر)">
+    <input type="email" id="email" placeholder="البريد الإلكتروني">
+    <input type="password" id="password" placeholder="كلمة المرور">
+    
+    <button class="btn-main" id="submit-btn">دخول</button>
+    
+    <div class="toggle-text" id="toggle-link">
+        ذيب جديد؟ <span>أنشئ حساباً</span>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBnCUMiGluMPhqMlaa-94xn9QLX19G7aPI",
+        authDomain: "mafia-2fdd8.firebaseapp.com",
+        projectId: "mafia-2fdd8",
+        databaseURL: "https://mafia-2fdd8-default-rtdb.firebaseio.com",
+        storageBucket: "mafia-2fdd8.firebasestorage.app",
+        messagingSenderId: "660248358624",
+        appId: "1:660248358624:web:9c9c495851b83f3c6d2a85"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    let isRegister = false;
+
+    // تبديل الواجهة
+    const toggleLink = document.getElementById('toggle-link');
+    const userField = document.getElementById('username');
+    const title = document.getElementById('main-title');
+    const submitBtn = document.getElementById('submit-btn');
+
+    toggleLink.onclick = () => {
+        isRegister = !isRegister;
+        title.innerText = isRegister ? "انضم للقطيع" : "دخول القطيع";
+        submitBtn.innerText = isRegister ? "إنشاء حساب" : "دخول";
+        userField.classList.toggle('hidden', !isRegister);
+        toggleLink.innerHTML = isRegister ? "لديك حساب؟ <span>سجل دخولك</span>" : "ذيب جديد؟ <span>أنشئ حساباً</span>";
+    };
+
+    // العملية الأساسية
+    submitBtn.onclick = async () => {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        const nick = userField.value;
+        const errBox = document.getElementById('error-box');
+
+        errBox.style.display = "none";
+
+        try {
+            if (isRegister) {
+                if(!nick) throw new Error("أدخل لقبك أولاً!");
+                
+                // 1. إنشاء الحساب في Auth
+                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+                const user = userCredential.user;
+
+                // 2. الحفظ الفعلي في الداتابيز (إجباري قبل الانتقال)
+                await set(ref(db, 'users/' + user.uid), {
+                    username: nick,
+                    email: email,
+                    lvl: 1,
+                    wins: 0
+                });
+
+                // 3. الانتقال فقط بعد نجاح الحفظ
+                window.location.href = "home.html";
+
+            } else {
+                // تسجيل الدخول العادي
+                await signInWithEmailAndPassword(auth, email, pass);
+                window.location.href = "home.html";
+            }
+        } catch (error) {
+            errBox.innerText = error.message;
+            errBox.style.display = "block";
+        }
+    };
+</script>
+</body>
+</html>
